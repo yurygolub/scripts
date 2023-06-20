@@ -1,6 +1,7 @@
 @echo off
 
-@if not exist yt-dlp.exe (
+where /Q yt-dlp
+if errorlevel 1	(
     curl -OL https://github.com/yt-dlp/yt-dlp/releases/download/2023.03.04/yt-dlp.exe
 )
 
