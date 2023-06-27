@@ -36,13 +36,8 @@ setx DOTNET_CLI_TELEMETRY_OPTOUT 1 /m
 
 
 :checkDotnet
-where /Q dotnet
-if errorlevel 1	(
-	echo installing dotnet
-	
-    if not exist dotnet-sdk-7.0.304-win-x64.exe curl -OL https://download.visualstudio.microsoft.com/download/pr/2ab1aa68-3e14-401a-b106-833d66fa992b/060457e640f4095acf4723c4593314b6/dotnet-sdk-7.0.304-win-x64.exe
-	
-	dotnet-sdk-7.0.304-win-x64.exe /install /passive
-	
-	exit
-)
+
+echo installing dotnet
+@if not exist dotnet-sdk-6.0.410-win-x64.exe curl -OL https://download.visualstudio.microsoft.com/download/pr/7c048383-52b1-47cb-91d1-acfaf1a3fcc9/ea510c0bfa44f33cc3ddea79090a51e1/dotnet-sdk-6.0.410-win-x64.exe
+
+dotnet-sdk-6.0.410-win-x64.exe /install /passive
