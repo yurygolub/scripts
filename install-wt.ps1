@@ -59,17 +59,22 @@ function Install-VCLibs
     }
 
     $VCLibsAppx = 'Microsoft.VCLibs.x64.14.00.Desktop.appx'
-    if (!(Test-Path -Path $VCLibsAppx))
+
+    $tempDir = 'temp'
+    $null = New-Item -Path $tempDir -Type Directory -Force
+
+    $VCLibsAppxPath = Join-Path $tempDir -ChildPath $VCLibsAppx
+    if (!(Test-Path -Path $VCLibsAppxPath))
     {
         $VCLibsUrl = "https://aka.ms/$VCLibsAppx"
         Write-Host "Downloading '$VCLibsAppx' from '$VCLibsUrl'"
-        curl.exe -LO $VCLibsUrl
+        curl.exe -L $VCLibsUrl -o $VCLibsAppxPath
     }
 
     Write-Host "Installing '$VCLibsAppx'"
     if ($currentShell -eq 'pwsh')
     {
-        $command = "Add-AppxPackage $VCLibsAppx"
+        $command = "Add-AppxPackage $VCLibsAppxPath"
         $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
@@ -78,7 +83,7 @@ function Install-VCLibs
     }
     else
     {
-        Add-AppxPackage $VCLibsAppx
+        Add-AppxPackage $VCLibsAppxPath
     }
 
     Write-Host
@@ -118,17 +123,22 @@ function Install-WindowsTerminal
     $tagName = Split-Path $redirected -Leaf
     $wtBundle = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
 
-    if (!(Test-Path -Path $wtBundle))
+    $tempDir = 'temp'
+    $null = New-Item -Path $tempDir -Type Directory -Force
+
+    $wtBundlePath = Join-Path $tempDir -ChildPath $wtBundle
+
+    if (!(Test-Path -Path $wtBundlePath))
     {
         $downloadUrl = "https://github.com/microsoft/terminal/releases/download/$tagName/$wtBundle"
         Write-Host "Downloading '$wtBundle' from '$downloadUrl'"
-        curl.exe -LO $downloadUrl
+        curl.exe -L $downloadUrl -o $wtBundlePath
     }
 
     Write-Host "Installing '$wtName'"
     if ($currentShell -eq 'pwsh')
     {
-        $command = "Add-AppxPackage $wtBundle"
+        $command = "Add-AppxPackage $wtBundlePath"
         $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
@@ -137,7 +147,7 @@ function Install-WindowsTerminal
     }
     else
     {
-        Add-AppxPackage $wtBundle
+        Add-AppxPackage $wtBundlePath
     }
 
     Write-Host
