@@ -37,7 +37,7 @@ function Install-VCLibs
     $currentShell = [System.AppDomain]::CurrentDomain.FriendlyName
     if ($currentShell -eq 'pwsh')
     {
-        $command = "if (!(Get-AppxPackage $VCLibName)) { return 1 }"
+        $command = "if (!(Get-AppxPackage $VCLibName)) { exit 1 }"
         $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
@@ -75,7 +75,7 @@ function Install-VCLibs
     if ($currentShell -eq 'pwsh')
     {
         $command = "Add-AppxPackage $VCLibsAppxPath"
-        $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+        $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
             exit $process.ExitCode
@@ -91,12 +91,18 @@ function Install-VCLibs
 
 function Install-WindowsTerminal
 {
+    if (Get-Command -ErrorAction Ignore -Type Application wt.exe)
+    {
+        Write-Host 'WindowsTerminal already installed'
+        return
+    }
+
     $isWtExist = $true
     $wtName = 'Microsoft.WindowsTerminal'
     $currentShell = [System.AppDomain]::CurrentDomain.FriendlyName
     if ($currentShell -eq 'pwsh')
     {
-        $command = "if (!(Get-AppxPackage $wtName)) { return 1 }"
+        $command = "if (!(Get-AppxPackage $wtName)) { exit 1 }"
         $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
@@ -117,8 +123,8 @@ function Install-WindowsTerminal
         return
     }
 
-    $url = 'https://github.com/microsoft/terminal/releases/latest'
-    $redirected = Get-RedirectedUrl $url
+    $baseUrl = 'https://github.com/microsoft/terminal/releases'
+    $redirected = Get-RedirectedUrl "$baseUrl/latest"
 
     $tagName = Split-Path $redirected -Leaf
     $wtBundle = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
@@ -130,7 +136,7 @@ function Install-WindowsTerminal
 
     if (!(Test-Path -Path $wtBundlePath))
     {
-        $downloadUrl = "https://github.com/microsoft/terminal/releases/download/$tagName/$wtBundle"
+        $downloadUrl = "$baseUrl/download/$tagName/$wtBundle"
         Write-Host "Downloading '$wtBundle' from '$downloadUrl'"
         curl.exe -L $downloadUrl -o $wtBundlePath
     }
@@ -139,7 +145,7 @@ function Install-WindowsTerminal
     if ($currentShell -eq 'pwsh')
     {
         $command = "Add-AppxPackage $wtBundlePath"
-        $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+        $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
         if ($process.ExitCode -ne 0)
         {
             exit $process.ExitCode
