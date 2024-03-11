@@ -5,7 +5,7 @@
 sudo apt update
 
 # Install pre-requisite packages.
-sudo apt install wget apt-transport-https software-properties-common
+sudo apt install -y wget apt-transport-https software-properties-common
 
 # Get the version of Ubuntu
 source /etc/os-release
@@ -24,7 +24,7 @@ sudo apt update
 
 ###################################
 # Install PowerShell
-sudo apt install powershell
+sudo apt install -y powershell
 
 # Start PowerShell
 pwsh
