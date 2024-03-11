@@ -2,19 +2,19 @@ function Get-RedirectedUrl
 {
     param (
         [Parameter(Mandatory = $true)]
-        [uri]$url,
-        [uri]$referer
+        [uri]$Url,
+        [uri]$Referer
     )
 
-    $request = [Net.WebRequest]::CreateDefault($url)
-    if ($referer)
+    $request = [Net.WebRequest]::CreateDefault($Url)
+    if ($Referer)
     {
-        $request.Referer = $referer
+        $request.Referer = $Referer
     }
 
     $response = $request.GetResponse()
 
-    if ($response -and $response.ResponseUri.OriginalString -ne $url)
+    if ($response -and $response.ResponseUri.OriginalString -ne $Url)
     {
         Write-Verbose "Found redirected url '$($response.ResponseUri)'"
         $result = $response.ResponseUri.OriginalString
@@ -22,7 +22,7 @@ function Get-RedirectedUrl
     else
     {
         Write-Warning 'No redirected url was found, returning given url.'
-        $result = $url
+        $result = $Url
     }
 
     $response.Dispose()
@@ -167,7 +167,7 @@ function Install-ChocoPackage
 {
     param (
         [Parameter(Mandatory = $true)]
-        [string]$package
+        [string]$Package
     )
 
     if (!(Get-Command -ErrorAction Ignore -Type Application choco.exe))
@@ -176,13 +176,13 @@ function Install-ChocoPackage
         return
     }
 
-    if (choco list --limit-output --exact $package)
+    if (choco list --limit-output --exact $Package)
     {
-        Write-Host "'$package' already installed"
+        Write-Host "'$Package' already installed"
         return
     }
 
-    choco install $package -y
+    choco install $Package -y
 }
 
 $ErrorActionPreference = 'Stop'
