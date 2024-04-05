@@ -1,4 +1,4 @@
-if ($null -ne (Get-Service DiagTrack -ErrorAction Ignore))
+if (Get-Service DiagTrack -ErrorAction Ignore)
 {
     Stop-Service DiagTrack
     Set-Service DiagTrack -StartupType Disabled
@@ -9,7 +9,11 @@ Disable-ScheduledTask -TaskPath $appExpTaskPath -TaskName 'Microsoft Compatibili
 Disable-ScheduledTask -TaskPath $appExpTaskPath -TaskName 'ProgramDataUpdater'
 Disable-ScheduledTask -TaskPath $appExpTaskPath -TaskName 'StartupAppTask'
 
-[System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', [System.EnvironmentVariableTarget]::Machine)
+if (Get-Command dotnet -ErrorAction Ignore -Type Application)
+{
+    [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', [System.EnvironmentVariableTarget]::Machine)
+    return
+}
 
 # Uninstall 3D Viewer:
 Get-AppxPackage Microsoft.Microsoft3DViewer | Remove-AppxPackage
