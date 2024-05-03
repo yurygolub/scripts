@@ -1,3 +1,8 @@
+param (
+    [switch]$Portable,
+    [string]$InstallPath
+)
+
 function Get-RedirectedUrl
 {
     param (
@@ -89,8 +94,40 @@ function Install-VCLibs
     Write-Host
 }
 
+function Add-ForSpecifiedPath
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Value,
+
+        [Parameter(Mandatory = $true)]
+        [EnvironmentVariableTarget]$VariableTarget
+    )
+
+    $currentPath = [Environment]::GetEnvironmentVariable('Path', $VariableTarget)
+    if (!($currentPath -split ';' -contains $Value))
+    {
+        $question = "Do you want to add '$Value' to Path?"
+        $choices = '&Yes', '&No'
+
+        $addToPath = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+        if ($addToPath -eq 0)
+        {
+            [Environment]::SetEnvironmentVariable('Path', $currentPath + ";$Value", $VariableTarget)
+
+            $Env:Path = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine) + ";" + [Environment]::GetEnvironmentVariable('Path',[EnvironmentVariableTarget]::User)
+        }
+    }
+}
+
 function Install-WindowsTerminal
 {
+    param (
+        [switch]$Portable,
+        [string]$InstallPath,
+        [switch]$Machine
+    )
+
     if (Get-Command -ErrorAction Ignore -Type Application wt.exe)
     {
         Write-Host 'WindowsTerminal already installed'
@@ -127,33 +164,64 @@ function Install-WindowsTerminal
     $redirected = Get-RedirectedUrl "$baseUrl/latest"
 
     $tagName = Split-Path $redirected -Leaf
-    $wtBundle = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
+    if ($Portable)
+    {
+        $wtFileName = "${wtName}_$($tagName.Substring(1))_x64.zip"
+    }
+    else
+    {
+        $wtFileName = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
+    }
 
     $tempDir = 'temp'
     $null = New-Item -Path $tempDir -Type Directory -Force
 
-    $wtBundlePath = Join-Path $tempDir -ChildPath $wtBundle
+    $wtFilePath = Join-Path $tempDir -ChildPath $wtFileName
 
-    if (!(Test-Path -Path $wtBundlePath))
+    if (!(Test-Path -Path $wtFilePath))
     {
-        $downloadUrl = "$baseUrl/download/$tagName/$wtBundle"
-        Write-Host "Downloading '$wtBundle' from '$downloadUrl'"
-        curl.exe -L $downloadUrl -o $wtBundlePath
+        $downloadUrl = "$baseUrl/download/$tagName/$wtFileName"
+        Write-Host "Downloading '$wtFileName' from '$downloadUrl'"
+        curl.exe -L $downloadUrl -o $wtFilePath
     }
 
     Write-Host "Installing '$wtName'"
-    if ($currentShell -eq 'pwsh')
+    if ($Portable)
     {
-        $command = "Add-AppxPackage $wtBundlePath"
-        $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
-        if ($process.ExitCode -ne 0)
+        if (!(Test-Path -Path $InstallPath))
         {
-            exit $process.ExitCode
+            Write-Warning "Invalid path '$InstallPath'"
+            return
+        }
+
+        Expand-Archive $wtFilePath -DestinationPath $InstallPath
+
+        $wtBin = Join-Path $InstallPath -ChildPath "terminal-$tagName"
+
+        if ($Machine)
+        {
+            Add-ForSpecifiedPath -Value $wtBin -VariableTarget Machine
+        }
+        else
+        {
+            Add-ForSpecifiedPath -Value $wtBin -VariableTarget User
         }
     }
     else
     {
-        Add-AppxPackage $wtBundlePath
+        if ($currentShell -eq 'pwsh')
+        {
+            $command = "Add-AppxPackage $wtFilePath"
+            $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+            if ($process.ExitCode -ne 0)
+            {
+                exit $process.ExitCode
+            }
+        }
+        else
+        {
+            Add-AppxPackage $wtFilePath
+        }
     }
 
     Write-Host
@@ -161,12 +229,41 @@ function Install-WindowsTerminal
 
 $ErrorActionPreference = 'Stop'
 
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+$question = 'How do you want to install WindowsTerminal?'
+$choices = '&All users', '&Current user'
+
+$choice = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+
+if ($choice -eq 0)
 {
-    Write-Warning 'You have to run this script as admin'
-    return
+    if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+    {
+        Write-Warning 'You have to run this script as admin'
+        return
+    }
+
+    $defaultPath = $Env:ProgramFiles
+}
+elseif ($choice -eq 1)
+{
+    $defaultPath = "$Env:USERPROFILE\AppData\Local\"
 }
 
-Install-VCLibs
+if ($Portable)
+{
+    if (!$InstallPath)
+    {
+        if (!($InstallPath = Read-Host "Input installation path. Default is [$defaultPath]"))
+        {
+            $InstallPath = $defaultPath
+        }
+    }
 
-Install-WindowsTerminal
+    Install-WindowsTerminal -Portable -InstallPath $InstallPath
+}
+else
+{
+    Install-VCLibs
+
+    Install-WindowsTerminal
+}
