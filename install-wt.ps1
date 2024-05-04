@@ -196,7 +196,7 @@ function Install-WindowsTerminal
 
         Expand-Archive $wtFilePath -DestinationPath $InstallPath
 
-        $wtBin = Join-Path $InstallPath -ChildPath "terminal-$tagName"
+        $wtBin = Join-Path $InstallPath -ChildPath "terminal-$($tagName.Substring(1))"
 
         if ($Machine)
         {
@@ -259,7 +259,14 @@ if ($Portable)
         }
     }
 
-    Install-WindowsTerminal -Portable -InstallPath $InstallPath
+    if ($choice -eq 0)
+    {
+        Install-WindowsTerminal -Portable -InstallPath $InstallPath -Machine
+    }
+    elseif ($choice -eq 1)
+    {
+        Install-WindowsTerminal -Portable -InstallPath $InstallPath
+    }
 }
 else
 {
