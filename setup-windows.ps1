@@ -48,6 +48,8 @@ Set-TimeZone -Id 'Belarus Standard Time'
 
 
 # sync time
+Set-Service -Name W32Time -StartupType Manual
 Start-Service -Name W32Time
 w32tm.exe /resync /nowait
 Stop-Service -Name W32Time
+Set-Service -Name W32Time -StartupType Disabled
