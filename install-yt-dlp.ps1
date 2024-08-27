@@ -54,12 +54,67 @@ function Save-File
     }
 }
 
+function Install-Ytdlp {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Tag,
+        [Parameter(Mandatory = $true)]
+        [string]$InstallPath
+    )
+
+    $tempDir = 'temp'
+    $null = New-Item -Type Directory $tempDir -Force
+
+    $ytdlpFileName = 'yt-dlp.exe'
+    $outputPath = Join-Path $tempDir $ytdlpFileName
+
+    if (!(Test-Path -Path $outputPath))
+    {
+        $downloadUrl = "$baseUrl/download/$Tag/$ytdlpFileName"
+        Save-File -DownloadUrl $downloadUrl -OutPath $outputPath
+    }
+
+    Copy-Item $outputPath $InstallPath
+
+    Remove-Item -Recurse -Force $tempDir
+
+    Write-Host
+}
+
+function Add-ForSpecifiedPath
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Value,
+
+        [Parameter(Mandatory = $true)]
+        [EnvironmentVariableTarget]$VariableTarget
+    )
+
+    $currentPath = [Environment]::GetEnvironmentVariable('Path', $VariableTarget)
+    if (!($currentPath -split ';' -contains $Value))
+    {
+        $question = "Do you want to add '$Value' to Path?"
+        $choices = '&Yes', '&No'
+
+        $addToPath = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+        if ($addToPath -eq 0)
+        {
+            [Environment]::SetEnvironmentVariable('Path', $currentPath + ";$Value", $VariableTarget)
+
+            $Env:Path = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine) + ";" + [Environment]::GetEnvironmentVariable('Path',[EnvironmentVariableTarget]::User)
+        }
+    }
+}
+
 $ErrorActionPreference = 'Stop'
+
+$baseUrl = 'https://github.com/yt-dlp/yt-dlp/releases'
 
 $ytdlpCommand = Get-Command -ErrorAction Ignore -Type Application yt-dlp
 if ($ytdlpCommand)
 {
-    $installationPaths = (Get-Item $ytdlpCommand.Path).Directory.Parent.FullName
+    $installationPaths = (Get-Item $ytdlpCommand.Path).Directory.FullName
     if ($installationPaths -isnot [string])
     {
         $ytdlpPath = $installationPaths[0]
@@ -83,40 +138,87 @@ if ($ytdlpCommand)
 
     $currentVersion = yt-dlp --version
 
-    $baseUrl = 'https://github.com/yt-dlp/yt-dlp/releases'
     $redirected = Get-RedirectedUrl "$baseUrl/latest"
     $tagName = Split-Path $redirected -Leaf
 
     if ($currentVersion -ne $tagName)
     {
-        Write-Host "Current version: $currentVersion. Available version: $tagName"
+        Write-Host "Current version: '$currentVersion'. Available version: '$tagName'"
 
         $question = "Do you want to install '$tagName'?"
         $choices = '&Yes', '&No'
-    
+
         $reinstall = $Host.UI.PromptForChoice($null, $question, $choices, 1)
 
-        if ($reinstall -eq 1)
+        if ($reinstall -eq 0)
         {
-            return
+            Install-Ytdlp -Tag $tagName -InstallPath $ytdlpPath
         }
     }
-
-    $tempDir = 'temp'
-    $null = New-Item -Type Directory $tempDir -Force
-
-    $ytdlpFileName = 'yt-dlp.exe'
-    $outputPath = Join-Path $tempDir $ytdlpFileName
-
-    if (!(Test-Path -Path $outputPath))
+    else
     {
-        $downloadUrl = "$baseUrl/download/$tagName/$ytdlpFileName"
-        Save-File -DownloadUrl $downloadUrl -OutPath $outputPath
+        Write-Host "Latest version is already installed: '$tagName'"
     }
 
-    Copy-Item $outputPath $ytdlpCommand.Path
+    return
+}
 
-    Remove-Item -Recurse -Force $tempDir
+$title = 'This script will install yt-dlp'
+$question = 'How do you want to install it?'
+$choices = '&All users', '&Current user'
 
-    Write-Host
+$scopeChoice = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+
+if ($scopeChoice -eq 0)
+{
+    if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+    {
+        Write-Warning 'You have to run this script as admin'
+        return
+    }
+
+    $defaultPath = $Env:ProgramFiles
+}
+elseif ($scopeChoice -eq 1)
+{
+    $defaultPath = "$Env:USERPROFILE\AppData\Local\"
+}
+
+if (!($inputPath = Read-Host "Input installation path. Default is [$defaultPath]"))
+{
+    $inputPath = $defaultPath
+}
+
+if (!(Test-Path -Path $inputPath))
+{
+    Write-Warning "Invalid path '$inputPath'"
+    return
+}
+
+$destFolder = 'yt-dlp'
+$destPath = Join-Path $inputPath -ChildPath $destFolder
+
+$title = "Latest version of yt-dlp will be installed to '$destPath'"
+$question = 'Are you sure you want to proceed?'
+$choices = '&Yes', '&No'
+
+$proceedDecision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+if ($proceedDecision -eq 1)
+{
+    Write-Host 'Abort'
+    return
+}
+
+$redirected = Get-RedirectedUrl "$baseUrl/latest"
+$tagName = Split-Path $redirected -Leaf
+
+Install-Ytdlp -Tag $tagName -InstallPath $destPath
+
+if ($scopeChoice -eq 0)
+{
+    Add-ForSpecifiedPath -Value $destPath -VariableTarget Machine
+}
+elseif ($scopeChoice -eq 1)
+{
+    Add-ForSpecifiedPath -Value $destPath -VariableTarget User
 }
