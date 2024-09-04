@@ -7,7 +7,7 @@ function Install-Pwsh
     if (Get-Command -ErrorAction Ignore -Type Application pwsh)
     {
         Write-Host 'pwsh already installed'
-        #return
+        return
     }
 
     $baseUrl = 'https://github.com/PowerShell/PowerShell'
@@ -27,7 +27,7 @@ function Install-Pwsh
     }
 
     $pwshInstallLog = Join-Path $tempDir -ChildPath 'pwsh-install.log'
-    #msiexec.exe /package $pwshInstallerPath /log $pwshInstallLog
+    msiexec.exe /package $pwshInstallerPath /log $pwshInstallLog
 }
 
 Install-Pwsh
