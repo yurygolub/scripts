@@ -1,39 +1,11 @@
 param (
-    [switch]$Portable,
-    [string]$InstallPath
+    [bool] $Portable = $true,
+    [string] $InstallPath
 )
 
-function Get-RedirectedUrl
-{
-    param (
-        [Parameter(Mandatory = $true)]
-        [uri]$Url,
-        [uri]$Referer
-    )
+$ErrorActionPreference = 'Stop'
 
-    $request = [Net.WebRequest]::CreateDefault($Url)
-    if ($Referer)
-    {
-        $request.Referer = $Referer
-    }
-
-    $response = $request.GetResponse()
-
-    if ($response -and $response.ResponseUri.OriginalString -ne $Url)
-    {
-        Write-Verbose "Found redirected url '$($response.ResponseUri)'"
-        $result = $response.ResponseUri.OriginalString
-    }
-    else
-    {
-        Write-Warning 'No redirected url was found, returning given url.'
-        $result = $Url
-    }
-
-    $response.Dispose()
-
-    return $result
-}
+. .\functions.ps1
 
 function Install-VCLibs
 {
@@ -72,8 +44,7 @@ function Install-VCLibs
     if (!(Test-Path -Path $VCLibsAppxPath))
     {
         $VCLibsUrl = "https://aka.ms/$VCLibsAppx"
-        Write-Host "Downloading '$VCLibsAppx' from '$VCLibsUrl'"
-        curl.exe -L $VCLibsUrl -o $VCLibsAppxPath
+        Save-File -DownloadUrl $VCLibsUrl -OutPath $VCLibsAppxPath
     }
 
     Write-Host "Installing '$VCLibsAppx'"
@@ -94,38 +65,12 @@ function Install-VCLibs
     Write-Host
 }
 
-function Add-ForSpecifiedPath
-{
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$Value,
-
-        [Parameter(Mandatory = $true)]
-        [EnvironmentVariableTarget]$VariableTarget
-    )
-
-    $currentPath = [Environment]::GetEnvironmentVariable('Path', $VariableTarget)
-    if (!($currentPath -split ';' -contains $Value))
-    {
-        $question = "Do you want to add '$Value' to Path?"
-        $choices = '&Yes', '&No'
-
-        $addToPath = $Host.UI.PromptForChoice($null, $question, $choices, 1)
-        if ($addToPath -eq 0)
-        {
-            [Environment]::SetEnvironmentVariable('Path', $currentPath + ";$Value", $VariableTarget)
-
-            $Env:Path = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine) + ";" + [Environment]::GetEnvironmentVariable('Path',[EnvironmentVariableTarget]::User)
-        }
-    }
-}
-
 function Install-WindowsTerminal
 {
     param (
-        [switch]$Portable,
-        [string]$InstallPath,
-        [switch]$Machine
+        [switch] $Portable,
+        [string] $InstallPath,
+        [switch] $Machine
     )
 
     if (Get-Command -ErrorAction Ignore -Type Application wt.exe)
@@ -181,8 +126,7 @@ function Install-WindowsTerminal
     if (!(Test-Path -Path $wtFilePath))
     {
         $downloadUrl = "$baseUrl/download/$tagName/$wtFileName"
-        Write-Host "Downloading '$wtFileName' from '$downloadUrl'"
-        curl.exe -L $downloadUrl -o $wtFilePath
+        Save-File -DownloadUrl $downloadUrl -OutPath $wtFilePath
     }
 
     Write-Host "Installing '$wtName'"

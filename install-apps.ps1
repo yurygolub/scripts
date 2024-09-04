@@ -1,34 +1,6 @@
-function Get-RedirectedUrl
-{
-    param (
-        [Parameter(Mandatory = $true)]
-        [uri]$Url,
-        [uri]$Referer
-    )
+$ErrorActionPreference = 'Stop'
 
-    $request = [Net.WebRequest]::CreateDefault($Url)
-    if ($Referer)
-    {
-        $request.Referer = $Referer
-    }
-
-    $response = $request.GetResponse()
-
-    if ($response -and $response.ResponseUri.OriginalString -ne $Url)
-    {
-        Write-Verbose "Found redirected url '$($response.ResponseUri)'"
-        $result = $response.ResponseUri.OriginalString
-    }
-    else
-    {
-        Write-Warning 'No redirected url was found, returning given url.'
-        $result = $Url
-    }
-
-    $response.Dispose()
-
-    return $result
-}
+. .\functions.ps1
 
 function Install-Notepad
 {
@@ -54,8 +26,7 @@ function Install-Notepad
     if (!(Test-Path -Path $nppInstallerPath))
     {
         $downloadUrl = "$baseUrl/download/$tagName/$nppInstaller"
-        Write-Host "Downloading '$nppInstaller' from '$downloadUrl'"
-        curl.exe -L $downloadUrl -o $nppInstallerPath
+        Save-File -DownloadUrl $downloadUrl -OutPath $nppInstallerPath
     }
 
     & $nppInstallerPath
@@ -65,7 +36,7 @@ function Install-Notepad
 
 function Install-Winget
 {
-    if (Get-Command -ErrorAction Ignore -Type Application winget.exe)
+    if (Get-Command -ErrorAction Ignore -Type Application winget)
     {
         Write-Host 'winget already installed'
         return
@@ -106,8 +77,7 @@ function Install-Winget
     if (!(Test-Path -Path $wingetBundlePath))
     {
         $downloadUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/$wingetBundle"
-        Write-Host "Downloading '$wingetBundle' from '$downloadUrl'"
-        curl.exe -L $downloadUrl -o $wingetBundlePath
+        Save-File -DownloadUrl $downloadUrl -OutPath $wingetBundlePath
     }
 
     Write-Host "Installing '$wingetName'"
@@ -130,26 +100,26 @@ function Install-Winget
 
 function Install-Git
 {
-    if (Get-Command -ErrorAction Ignore -Type Application git.exe)
+    if (Get-Command -ErrorAction Ignore -Type Application git)
     {
         Write-Host 'git already installed'
         return
     }
 
-    if (!(Get-Command -ErrorAction Ignore -Type Application winget.exe))
+    if (!(Get-Command -ErrorAction Ignore -Type Application winget))
     {
         Write-Host 'winget not installed'
         return
     }
 
-    winget.exe install --id Git.Git -e --source winget
+    winget install --id Git.Git -e --source winget
 
     Write-Host
 }
 
 function Install-Choco
 {
-    if (Get-Command -ErrorAction Ignore -Type Application choco.exe)
+    if (Get-Command -ErrorAction Ignore -Type Application choco)
     {
         Write-Host 'choco already installed'
         return
@@ -167,10 +137,10 @@ function Install-ChocoPackage
 {
     param (
         [Parameter(Mandatory = $true)]
-        [string]$Package
+        [string] $Package
     )
 
-    if (!(Get-Command -ErrorAction Ignore -Type Application choco.exe))
+    if (!(Get-Command -ErrorAction Ignore -Type Application choco))
     {
         Write-Host 'choco not installed'
         return
@@ -178,14 +148,12 @@ function Install-ChocoPackage
 
     if (choco list --limit-output --exact $Package)
     {
-        Write-Host "'$Package' already installed"
+        Write-Host "choco package: '$Package' already installed"
         return
     }
 
     choco install $Package -y
 }
-
-$ErrorActionPreference = 'Stop'
 
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {

@@ -1,37 +1,15 @@
-function Get-RedirectedUrl
-{
-    param (
-        [Parameter(Mandatory = $true)]
-        [uri]$Url,
-        [uri]$Referer
-    )
+$ErrorActionPreference = 'Stop'
 
-    $request = [Net.WebRequest]::CreateDefault($Url)
-    if ($Referer)
-    {
-        $request.Referer = $Referer
-    }
-
-    $response = $request.GetResponse()
-
-    if ($response -and $response.ResponseUri.OriginalString -ne $Url)
-    {
-        Write-Verbose "Found redirected url '$($response.ResponseUri)'"
-        $result = $response.ResponseUri.OriginalString
-    }
-    else
-    {
-        Write-Warning 'No redirected url was found, returning given url.'
-        $result = $Url
-    }
-
-    $response.Dispose()
-
-    return $result
-}
+. .\functions.ps1
 
 function Install-Pwsh
 {
+    if (Get-Command -ErrorAction Ignore -Type Application pwsh)
+    {
+        Write-Host 'pwsh already installed'
+        #return
+    }
+
     $baseUrl = 'https://github.com/PowerShell/PowerShell'
     $redirected = Get-RedirectedUrl "$baseUrl/releases/latest"
 
@@ -45,12 +23,11 @@ function Install-Pwsh
     if (!(Test-Path -Path $pwshInstallerPath))
     {
         $downloadUrl = "$baseUrl/releases/download/$tagName/$pwshInstaller"
-        Write-Host "Downloading '$pwshInstaller' from '$downloadUrl'"
-        curl.exe -L $downloadUrl -o $pwshInstallerPath
+        Save-File -DownloadUrl $downloadUrl -OutPath $pwshInstallerPath
     }
 
     $pwshInstallLog = Join-Path $tempDir -ChildPath 'pwsh-install.log'
-    msiexec.exe /package $pwshInstallerPath /log $pwshInstallLog
+    #msiexec.exe /package $pwshInstallerPath /log $pwshInstallLog
 }
 
 Install-Pwsh
