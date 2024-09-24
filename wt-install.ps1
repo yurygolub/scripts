@@ -65,37 +65,24 @@ function Install-VCLibs
     Write-Host
 }
 
-function Install-WindowsTerminal
+function Install-WindowsTerminalBundle
 {
-    param (
-        [switch] $Portable,
-        [string] $InstallPath,
-        [switch] $Machine
-    )
-
-    if (Get-Command -ErrorAction Ignore -Type Application wt.exe)
-    {
-        Write-Host 'WindowsTerminal already installed'
-        return
-    }
-
-    $isWtExist = $true
     $wtName = 'Microsoft.WindowsTerminal'
     $currentShell = [System.AppDomain]::CurrentDomain.FriendlyName
     if ($currentShell -eq 'pwsh')
     {
         $command = "if (!(Get-AppxPackage $wtName)) { exit 1 }"
         $process = Start-Process PowerShell -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
-        if ($process.ExitCode -ne 0)
+        if ($process.ExitCode -eq 0)
         {
-            $isWtExist = $false
+            $isWtExist = $true
         }
     }
     else
     {
-        if (!(Get-AppxPackage $wtName))
+        if (Get-AppxPackage $wtName)
         {
-            $isWtExist = $false
+            $isWtExist = $true
         }
     }
 
@@ -109,14 +96,8 @@ function Install-WindowsTerminal
     $redirected = Get-RedirectedUrl "$baseUrl/latest"
 
     $tagName = Split-Path $redirected -Leaf
-    if ($Portable)
-    {
-        $wtFileName = "${wtName}_$($tagName.Substring(1))_x64.zip"
-    }
-    else
-    {
-        $wtFileName = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
-    }
+
+    $wtFileName = "${wtName}_$($tagName.Substring(1))_8wekyb3d8bbwe.msixbundle"
 
     $tempDir = 'temp'
     $null = New-Item -Path $tempDir -Type Directory -Force
@@ -130,55 +111,113 @@ function Install-WindowsTerminal
     }
 
     Write-Host "Installing '$wtName'"
-    if ($Portable)
+    if ($currentShell -eq 'pwsh')
     {
-        if (!(Test-Path -Path $InstallPath))
+        $command = "Add-AppxPackage $wtFilePath"
+        $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+        if ($process.ExitCode -ne 0)
         {
-            Write-Warning "Invalid path '$InstallPath'"
-            return
-        }
-
-        Expand-Archive $wtFilePath -DestinationPath $InstallPath
-
-        $wtBin = Join-Path $InstallPath -ChildPath "terminal-$($tagName.Substring(1))"
-
-        if ($Machine)
-        {
-            Add-ForSpecifiedPath -Value $wtBin -VariableTarget Machine
-        }
-        else
-        {
-            Add-ForSpecifiedPath -Value $wtBin -VariableTarget User
+            exit $process.ExitCode
         }
     }
     else
     {
-        if ($currentShell -eq 'pwsh')
-        {
-            $command = "Add-AppxPackage $wtFilePath"
-            $process = Start-Process PowerShell -WorkingDirectory $pwd -NoNewWindow -PassThru -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
-            if ($process.ExitCode -ne 0)
-            {
-                exit $process.ExitCode
-            }
-        }
-        else
-        {
-            Add-AppxPackage $wtFilePath
-        }
+        Add-AppxPackage $wtFilePath
     }
 
     Write-Host
 }
 
-$ErrorActionPreference = 'Stop'
+function Install-WindowsTerminalPortable
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $Tag,
+
+        [Parameter(Mandatory = $true)]
+        [string] $InstallPath
+    )
+
+    $wtName = 'Microsoft.WindowsTerminal'
+    $tagNumber = $Tag.Substring(1)
+    $wtFileName = "${wtName}_${tagNumber}_x64.zip"
+
+    $tempDir = 'temp'
+    $null = New-Item -Path $tempDir -Type Directory -Force
+
+    $wtFilePath = Join-Path $tempDir -ChildPath $wtFileName
+
+    if (!(Test-Path -Path $wtFilePath))
+    {
+        $downloadUrl = "$baseUrl/download/$Tag/$wtFileName"
+        Save-File -DownloadUrl $downloadUrl -OutPath $wtFilePath
+    }
+
+    Write-Host "Installing '$wtName'"
+
+    Expand-Archive $wtFilePath -DestinationPath $tempDir
+
+    $tempPath = Join-Path $tempDir -ChildPath "terminal-$tagNumber"
+
+    $null = New-Item -Type Directory $InstallPath -Force
+    Remove-Item -Recurse -Force "$InstallPath/*"
+    Copy-Item -Recurse "$tempPath/*" $InstallPath
+    Remove-Item -Recurse -Force $tempPath
+
+    Write-Host
+}
+
+$baseUrl = 'https://github.com/microsoft/terminal/releases'
+
+$wtCommand = Get-Command -ErrorAction Ignore -Type Application wt
+if ($wtCommand)
+{
+    $installationPaths = (Get-Item $wtCommand.Path).Directory.FullName
+    if ($installationPaths -isnot [string])
+    {
+        $wtPath = $installationPaths[0]
+    }
+    else
+    {
+        $wtPath = $installationPaths
+    }
+
+    Write-Warning "wt already installed: '$wtPath'"
+
+    $question = 'Do you want to check for newer version?'
+    $choices = '&Yes', '&No'
+
+    $checkVersion = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+
+    if ($checkVersion -eq 1)
+    {
+        return
+    }
+
+    $redirected = Get-RedirectedUrl "$baseUrl/latest"
+    $tagName = Split-Path $redirected -Leaf
+
+    Write-Host "Available version: '$tagName'"
+
+    $question = "Do you want to install '$tagName'?"
+    $choices = '&Yes', '&No'
+
+    $reinstall = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+
+    if ($reinstall -eq 0)
+    {
+        Install-WindowsTerminalPortable -Tag $tagName -InstallPath $wtPath
+    }
+
+    return
+}
 
 $question = 'How do you want to install WindowsTerminal?'
 $choices = '&All users', '&Current user'
 
-$choice = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+$scopeChoice = $Host.UI.PromptForChoice($null, $question, $choices, 1)
 
-if ($choice -eq 0)
+if ($scopeChoice -eq 0)
 {
     if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
     {
@@ -187,10 +226,12 @@ if ($choice -eq 0)
     }
 
     $defaultPath = $Env:ProgramFiles
+    $scope = [EnvironmentVariableTarget]::Machine
 }
-elseif ($choice -eq 1)
+elseif ($scopeChoice -eq 1)
 {
-    $defaultPath = "$Env:USERPROFILE\AppData\Local\"
+    $defaultPath = $Env:LOCALAPPDATA
+    $scope = [EnvironmentVariableTarget]::User
 }
 
 if ($Portable)
@@ -203,18 +244,26 @@ if ($Portable)
         }
     }
 
-    if ($choice -eq 0)
+    if (!(Test-Path -Path $InstallPath))
     {
-        Install-WindowsTerminal -Portable -InstallPath $InstallPath -Machine
+        Write-Warning "Invalid path '$InstallPath'"
+        return
     }
-    elseif ($choice -eq 1)
-    {
-        Install-WindowsTerminal -Portable -InstallPath $InstallPath
-    }
+    
+    $destFolder = 'terminal'
+    $destPath = Join-Path $InstallPath -ChildPath $destFolder
+
+    $redirected = Get-RedirectedUrl "$baseUrl/latest"
+
+    $tagName = Split-Path $redirected -Leaf
+
+    Install-WindowsTerminalPortable -Tag $tagName -InstallPath $destPath
+
+    Add-ForSpecifiedPath -Value $destPath -VariableTarget $scope
 }
 else
 {
     Install-VCLibs
 
-    Install-WindowsTerminal
+    Install-WindowsTerminalBundle
 }

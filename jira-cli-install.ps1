@@ -69,10 +69,12 @@ if ($choice -eq 0)
     }
 
     $defaultPath = $Env:ProgramFiles
+    $scope = [EnvironmentVariableTarget]::Machine
 }
 elseif ($choice -eq 1)
 {
-    $defaultPath = "$Env:USERPROFILE\AppData\Local\"
+    $defaultPath = $Env:LOCALAPPDATA
+    $scope = [EnvironmentVariableTarget]::User
 }
 
 if (!($inputPath = Read-Host "Input installation path. Default is [$defaultPath]"))
@@ -116,23 +118,9 @@ if (!$Env:JIRA_API_TOKEN)
 
     $Env:JIRA_API_TOKEN = $apiToken
 
-    if ($choice -eq 0)
-    {
-        [Environment]::SetEnvironmentVariable('JIRA_API_TOKEN', $apiToken, [EnvironmentVariableTarget]::Machine)
-    }
-    elseif ($choice -eq 1)
-    {
-        [Environment]::SetEnvironmentVariable('JIRA_API_TOKEN', $apiToken, [EnvironmentVariableTarget]::User)
-    }
+    [Environment]::SetEnvironmentVariable('JIRA_API_TOKEN', $apiToken, $scope)
 }
 
-if ($choice -eq 0)
-{
-    Add-ForSpecifiedPath -Value $jiraBin -VariableTarget Machine
-}
-elseif ($choice -eq 1)
-{
-    Add-ForSpecifiedPath -Value $jiraBin -VariableTarget User
-}
+Add-ForSpecifiedPath -Value $jiraBin -VariableTarget $scope
 
 Write-Host 'Installation successfull'

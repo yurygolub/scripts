@@ -103,7 +103,7 @@ if ($scopeChoice -eq 0)
 }
 elseif ($scopeChoice -eq 1)
 {
-    $defaultPath = "$Env:USERPROFILE\AppData\Local\"
+    $defaultPath = $Env:LOCALAPPDATA
 }
 
 if (!($inputPath = Read-Host "Input installation path. Default is [$defaultPath]"))
