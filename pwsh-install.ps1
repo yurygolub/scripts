@@ -27,7 +27,7 @@ function Install-Pwsh
     }
 
     $pwshInstallLog = Join-Path $tempDir -ChildPath 'pwsh-install.log'
-    msiexec.exe /package $pwshInstallerPath /log $pwshInstallLog
+    msiexec.exe /package $pwshInstallerPath /log! $pwshInstallLog /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=0 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=0 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=0 ENABLE_MU=0 ADD_PATH=1 DISABLE_TELEMETRY=1
 }
 
 Install-Pwsh
