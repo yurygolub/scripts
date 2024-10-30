@@ -5,27 +5,32 @@ $ErrorActionPreference = 'Stop'
 function Install-JiraCli
 {
     param (
-        [string] $Destination
+        [Parameter(Mandatory = $true)]
+        [string] $Tag,
+
+        [Parameter(Mandatory = $true)]
+        [string] $InstallPath
     )
 
-    $url = 'https://github.com/ankitpokhrel/jira-cli/releases/latest'
-    $redirected = Get-RedirectedUrl $url
+    $tempDir = 'temp'
+    $null = New-Item -Type Directory $tempDir -Force
 
-    $tagName = Split-Path $redirected -Leaf
-    $archive = "jira_$($tagName.Substring(1))_windows_x86_64.zip"
+    $archive = "jira_$($Tag.Substring(1))_windows_x86_64.zip"
+    $outputPath = Join-Path $tempDir $archive
 
-    if (!(Test-Path -Path $archive))
+    if (!(Test-Path -Path $outputPath))
     {
-        $downloadUrl = "https://github.com/ankitpokhrel/jira-cli/releases/download/$tagName/$archive"
-
-        Write-Host "Downloading '$archive' from '$downloadUrl'"
-        Invoke-WebRequest $downloadUrl -OutFile $archive
+        $downloadUrl = "$baseUrl/download/$Tag/$archive"
+        Save-File -DownloadUrl $downloadUrl -OutPath $outputPath
     }
 
-    Write-Host "Expanding '$archive' to '$Destination'"
-    Expand-Archive $archive -DestinationPath $Destination -Force
-    Remove-Item $archive
+    Write-Host "Expanding '$outputPath' to '$InstallPath'"
+    Expand-Archive $outputPath -DestinationPath $InstallPath -Force
+    Remove-Item -Recurse -Force $tempDir
+    Write-Host
 }
+
+$baseUrl = 'https://github.com/ankitpokhrel/jira-cli/releases'
 
 $jiraCommand = Get-Command -ErrorAction Ignore -Type Application jira
 if ($jiraCommand)
@@ -42,13 +47,39 @@ if ($jiraCommand)
 
     Write-Warning "jira-cli already installed: '$jiraPath'"
 
-    $question = 'Do you want to update it?'
+    $question = 'Do you want to check for newer version?'
     $choices = '&Yes', '&No'
 
-    $reinstall = $Host.UI.PromptForChoice($null, $question, $choices, 1)
-    if ($reinstall -eq 0)
+    $checkVersion = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+
+    if ($checkVersion -eq 1)
     {
-        Install-JiraCli $jiraPath
+        return
+    }
+
+    $currentVersion = (jira version).Trim('(', ')').Split(',')[0].Split('=')[1].Trim('"')
+
+    $redirected = Get-RedirectedUrl "$baseUrl/latest"
+    $tagName = Split-Path $redirected -Leaf
+    $version = $tagName.Substring(1)
+
+    if ($currentVersion -ne $version)
+    {
+        Write-Host "Current version: '$currentVersion'. Available version: '$version'"
+
+        $question = "Do you want to install '$version'?"
+        $choices = '&Yes', '&No'
+
+        $reinstall = $Host.UI.PromptForChoice($null, $question, $choices, 1)
+
+        if ($reinstall -eq 0)
+        {
+            Install-JiraCli -Tag $tagName -InstallPath $jiraPath
+        }
+    }
+    else
+    {
+        Write-Host "Latest version is already installed: '$version'"
     }
 
     return
@@ -58,9 +89,9 @@ $title = 'This script will install jira-cli'
 $question = 'How do you want to install it?'
 $choices = '&All users', '&Current user'
 
-$choice = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+$scopeChoice = $Host.UI.PromptForChoice($title, $question, $choices, 1)
 
-if ($choice -eq 0)
+if ($scopeChoice -eq 0)
 {
     if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
     {
@@ -71,7 +102,7 @@ if ($choice -eq 0)
     $defaultPath = $Env:ProgramFiles
     $scope = [EnvironmentVariableTarget]::Machine
 }
-elseif ($choice -eq 1)
+elseif ($scopeChoice -eq 1)
 {
     $defaultPath = $Env:LOCALAPPDATA
     $scope = [EnvironmentVariableTarget]::User
@@ -102,11 +133,14 @@ if ($proceedDecision -eq 1)
     return
 }
 
+$redirected = Get-RedirectedUrl "$baseUrl/latest"
+$tagName = Split-Path $redirected -Leaf
+
 $jiraBin = Join-Path $destPath -ChildPath 'bin'
 
 if (!(Test-Path -Path $jiraBin))
 {
-    Install-JiraCli $destPath
+    Install-JiraCli -Tag $tagName -InstallPath $destPath
 }
 
 if (!$Env:JIRA_API_TOKEN)

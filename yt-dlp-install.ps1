@@ -24,10 +24,9 @@ function Install-Ytdlp
         Save-File -DownloadUrl $downloadUrl -OutPath $outputPath
     }
 
+    $null = New-Item -Type Directory $InstallPath -Force
     Copy-Item $outputPath $InstallPath
-
     Remove-Item -Recurse -Force $tempDir
-
     Write-Host
 }
 
@@ -100,10 +99,12 @@ if ($scopeChoice -eq 0)
     }
 
     $defaultPath = $Env:ProgramFiles
+    $scope = [EnvironmentVariableTarget]::Machine
 }
 elseif ($scopeChoice -eq 1)
 {
     $defaultPath = $Env:LOCALAPPDATA
+    $scope = [EnvironmentVariableTarget]::User
 }
 
 if (!($inputPath = Read-Host "Input installation path. Default is [$defaultPath]"))
@@ -136,11 +137,6 @@ $tagName = Split-Path $redirected -Leaf
 
 Install-Ytdlp -Tag $tagName -InstallPath $destPath
 
-if ($scopeChoice -eq 0)
-{
-    Add-ForSpecifiedPath -Value $destPath -VariableTarget Machine
-}
-elseif ($scopeChoice -eq 1)
-{
-    Add-ForSpecifiedPath -Value $destPath -VariableTarget User
-}
+Add-ForSpecifiedPath -Value $destPath -VariableTarget $scope
+
+Write-Host 'Installation successfull'

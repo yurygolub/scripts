@@ -40,10 +40,19 @@ function Save-File
         [string] $OutPath
     )
 
-    Write-Host "Downloading '$OutPath' from '$DownloadUrl'"
-    if (Get-Command curl -ErrorAction Ignore -Type Application)
+    if ([System.AppDomain]::CurrentDomain.FriendlyName -eq 'pwsh')
     {
-        curl -L $DownloadUrl -o $OutPath
+        $curlExec = 'curl'
+    }
+    else
+    {
+        $curlExec = 'curl.exe'
+    }
+
+    Write-Host "Downloading '$OutPath' from '$DownloadUrl'"
+    if (Get-Command $curlExec -ErrorAction Ignore -Type Application)
+    {
+        & $curlExec -L $DownloadUrl -o $OutPath
         Write-Host
     }
     else
