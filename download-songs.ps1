@@ -1,6 +1,7 @@
 param (
     [string] $OutPath,
-    [string] $Urls
+    [string] $Urls,
+    [switch] $DefaultName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,4 +29,20 @@ if (!$Urls -and !($Urls = Read-Host "Input URL(s)"))
 
 $null = New-Item -Type Directory $OutPath -Force
 
-yt-dlp -f m4a -o "$OutPath/%(artist)s - %(track)s.%(ext)s" --embed-metadata $Urls.Split(" ")
+if ($DefaultName)
+{
+    $currentLocation = $PWD
+    Set-Location $OutPath
+    try
+    {
+        yt-dlp -f m4a --embed-metadata $Urls.Split(" ")
+    }
+    finally
+    {
+        Set-Location $currentLocation
+    }
+}
+else
+{
+    yt-dlp -f m4a -o "$OutPath/%(artist)s - %(track)s.%(ext)s" --embed-metadata $Urls.Split(" ")
+}
