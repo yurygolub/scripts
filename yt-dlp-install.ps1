@@ -32,6 +32,11 @@ function Install-Ytdlp
         Save-File -DownloadUrl $downloadUrl -OutPath $outputPath
     }
 
+    if ($IsLinux)
+    {
+        chmod +x $outputPath
+    }
+
     $null = New-Item -Type Directory $InstallPath -Force
     Copy-Item $outputPath $InstallPath
     Remove-Item -Recurse -Force $tempDir
