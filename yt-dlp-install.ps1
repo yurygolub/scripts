@@ -15,7 +15,15 @@ function Install-Ytdlp
     $tempDir = 'temp'
     $null = New-Item -Type Directory $tempDir -Force
 
-    $ytdlpFileName = 'yt-dlp.exe'
+    if ($IsWindows)
+    {
+        $ytdlpFileName = 'yt-dlp.exe'
+    }
+    elseif ($IsLinux)
+    {
+        $ytdlpFileName = 'yt-dlp'
+    }
+
     $outputPath = Join-Path $tempDir $ytdlpFileName
 
     if (!(Test-Path -Path $outputPath))
@@ -45,7 +53,7 @@ if ($ytdlpCommand)
         $ytdlpPath = $installationPaths
     }
 
-    Write-Warning "ytdlp already installed: '$ytdlpPath'"
+    Write-Warning "yt-dlp already installed: '$ytdlpPath'"
 
     $question = 'Do you want to check for newer version?'
     $choices = '&Yes', '&No'
@@ -81,6 +89,12 @@ if ($ytdlpCommand)
         Write-Host "Latest version is already installed: '$tagName'"
     }
 
+    return
+}
+
+if (!$IsWindows)
+{
+    Write-Warning 'Installation is currently supported on Windows only'
     return
 }
 
