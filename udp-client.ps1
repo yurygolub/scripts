@@ -11,7 +11,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$endPoint = [System.Net.IPEndPoint]::new(0, 0)
 $receiveUdpClient = [System.Net.Sockets.UdpClient]::new($LocalPort)
 
 $sendUdpClient = [System.Net.Sockets.UdpClient]::new()
@@ -23,12 +22,19 @@ try
 {
     while ($true)
     {
-        [byte[]] $buffer = $receiveUdpClient.Receive([ref] $endPoint)
-        $null = $sendUdpClient.Send($buffer)
+        [System.Threading.Tasks.Task] $receiveTask = $receiveUdpClient.ReceiveAsync()
+        while (-not $receiveTask.AsyncWaitHandle.WaitOne(100))
+        {
+        }
+
+        $receiveTask.GetAwaiter().GetResult()
+
+        $null = $SendUdpClient.SendAsync($result.Buffer, [System.Threading.CancellationToken]::None)
     }
 }
 finally
 {
     $receiveUdpClient.Dispose()
     $sendUdpClient.Dispose()
+    $receiveTask.Dispose()
 }
