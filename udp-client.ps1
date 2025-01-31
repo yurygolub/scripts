@@ -1,10 +1,10 @@
 param(
     [Parameter(Mandatory = $true)]
     [int] $LocalPort,
-    
+
     [Parameter(Mandatory = $true)]
     [int] $RemotePort,
-    
+
     [Parameter(Mandatory = $true)]
     [string] $RemoteIP
 )
