@@ -27,9 +27,11 @@ try
         {
         }
 
-        $receiveTask.GetAwaiter().GetResult()
+        $result = $receiveTask.GetAwaiter().GetResult()
+        Write-Host 'Received'
 
-        $null = $SendUdpClient.SendAsync($result.Buffer, [System.Threading.CancellationToken]::None)
+        $null = $UdpClient.Send($result.Buffer, $result.Buffer.Length, $RemoteIP, $RemotePort)
+        Write-Host 'Sent'
     }
 }
 finally
