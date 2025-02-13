@@ -30,7 +30,7 @@ try
         $result = $receiveTask.GetAwaiter().GetResult()
         Write-Host 'Received'
 
-        $null = $UdpClient.Send($result.Buffer, $result.Buffer.Length, $RemoteIP, $RemotePort)
+        $null = $sendUdpClient.Send($result.Buffer)
         Write-Host 'Sent'
     }
 }
