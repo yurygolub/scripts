@@ -8,6 +8,7 @@
   - [Configure](#configure)
   - [Test installation](#test-installation)
   - [Change default text editor for jira](#change-default-text-editor-for-jira)
+  - [Commands](#commands)
 
 This repository contains script to install [jira-cli](https://github.com/ankitpokhrel/jira-cli) on Windows
 
@@ -71,4 +72,11 @@ For example you can do it via powershell
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable('JIRA_EDITOR', 'nvim', [System.EnvironmentVariableTarget]::User)
+```
+
+## Commands
+
+```sh
+jira issue list -a $(jira me)
+jira issue view someproj-39 --comments 10
 ```
