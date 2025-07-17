@@ -133,6 +133,21 @@ function Install-Choco
     Write-Host
 }
 
+function Install-Scoop
+{
+    if (Get-Command -ErrorAction Ignore -Type Application scoop)
+    {
+        Write-Host 'scoop already installed'
+        return
+    }
+
+    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+    $Env:Path = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine) + ";" + [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User)
+
+    Write-Host
+}
+
 function Install-ChocoPackage
 {
     param (
@@ -146,9 +161,34 @@ function Install-ChocoPackage
         return
     }
 
-    if (choco list --limit-output --exact $Package)
+    $result = choco list --limit-output --exact $Package
+    if ($result)
     {
-        Write-Host "choco package: '$Package' already installed"
+        Write-Host "choco package: '$Package' already installed: $result"
+        return
+    }
+
+    choco install $Package -y
+}
+
+function Install-ScoopPackage
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $Package
+    )
+
+    if (!(Get-Command -ErrorAction Ignore -Type Application scoop))
+    {
+        Write-Host 'scoop not installed'
+        return
+    }
+
+    $result = scoop list $Package 6> $null
+    $resultName = $result | Select-Object -ExpandProperty Name
+    if ($resultName -eq $Package)
+    {
+        Write-Host "scoop package: '$Package' already installed: $($result.Name)|$($result.Version)"
         return
     }
 
@@ -157,20 +197,29 @@ function Install-ChocoPackage
 
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
+    Install-Scoop
+
+    Install-ScoopPackage btop
+    Install-ScoopPackage iperf3
+    Install-ScoopPackage neofetch
+    Install-ScoopPackage ntop
+
     Write-Warning 'You have to run this script as admin'
     return
 }
 
 Install-Notepad
 
-Install-Winget
+# Install-Winget
 
-Install-Git
+# Install-Git
 
 Install-Choco
 
-Install-ChocoPackage make
+# Install-ChocoPackage make
+Install-ChocoPackage neovim
+Install-ChocoPackage ripgrep
+Install-ChocoPackage git
 Install-ChocoPackage delta
 Install-ChocoPackage gitui
 Install-ChocoPackage ilspy
-Install-ChocoPackage neovim
